@@ -1,16 +1,15 @@
 # Hastane Otomasyonu – ER Diyagramı
 
-Aşağıdaki diyagram, ödevde verilen yedi varlığı ve ilişkileri gösterir. N:M ilişkiler ilişkisel tablolar tasarlanırken ara tablolarla çözülür.
+Bu diyagram, ödevde verilen yedi temel varlığı ve ilişkileri gösterir. Hasta–Tahlil ve Doktor–Tahlil N:M ilişkileri, hangi doktorun hangi hasta için hangi tahlili istediğini de saklayan `TAHLIL_ISTEMLERI` işlem tablosu üzerinden çözülmüştür.
 
 ```mermaid
 erDiagram
     POLIKLINIKLER ||--o{ DOKTORLAR : "calisir"
     HASTALAR ||--o{ HASTA_MUAYENELERI : "muayene olur"
     POLIKLINIKLER ||--o{ HASTA_MUAYENELERI : "muayene yapar"
-    HASTALAR ||--o{ HASTA_TAHLILLERI : "tahlil yaptirir"
-    TAHLILLER ||--o{ HASTA_TAHLILLERI : "hasta tahlili"
-    DOKTORLAR ||--o{ DOKTOR_TAHLIL_ISTEMLERI : "ister"
-    TAHLILLER ||--o{ DOKTOR_TAHLIL_ISTEMLERI : "istenir"
+    HASTALAR ||--o{ TAHLIL_ISTEMLERI : "icin istenir"
+    DOKTORLAR ||--o{ TAHLIL_ISTEMLERI : "ister"
+    TAHLILLER ||--o{ TAHLIL_ISTEMLERI : "talep edilir"
     LABORATUVARLAR ||--o{ TAHLILLER : "gerceklestirir"
     POLIKLINIKLER ||--o{ SERVISLER : "aittir"
     SERVISLER ||--o{ HEMSIRELER : "calisir"
@@ -63,17 +62,16 @@ erDiagram
         int poliklinik_id FK
         datetime muayene_tarihi
     }
-    HASTA_TAHLILLERI {
-        int hasta_tahlil_id PK
+    TAHLIL_ISTEMLERI {
+        int tahlil_istemi_id PK
         int hasta_id FK
-        int tahlil_id FK
-        string durum
-    }
-    DOKTOR_TAHLIL_ISTEMLERI {
-        int doktor_tahlil_id PK
         int doktor_id FK
         int tahlil_id FK
         datetime istem_tarihi
+        datetime numune_alinma_tarihi
+        string sonuc
+        datetime sonuc_tarihi
+        string durum
     }
 ```
 
@@ -83,17 +81,25 @@ erDiagram
 |---|---|---|
 | Poliklinik–Doktor | 1:N | `doktorlar.poliklinik_id` |
 | Hasta–Poliklinik | N:M | `hasta_muayeneleri` |
-| Hasta–Tahlil | N:M | `hasta_tahlilleri` |
-| Doktor–Tahlil | N:M | `doktor_tahlil_istemleri` |
+| Hasta–Tahlil | N:M | `tahlil_istemleri` üzerinden |
+| Doktor–Tahlil | N:M | `tahlil_istemleri` üzerinden |
 | Laboratuvar–Tahlil | 1:N | `tahliller.laboratuvar_id` |
 | Servis–Hemşire | 1:N | `hemsireler.servis_id` |
 | Poliklinik–Servis | 1:N | `servisler.poliklinik_id` |
 
-## Önemli tasarım notu
+## Tahlil ilişkisinin nasıl çalıştığı
+
+- `tahlil_istemleri.hasta_id`, tahlilin hangi hasta için istendiğini belirtir.
+- `tahlil_istemleri.doktor_id`, tahlili isteyen doktoru belirtir.
+- `tahlil_istemleri.tahlil_id`, istenen tahlil türünü belirtir.
+- `sonuc`, `sonuc_tarihi`, `numune_alinma_tarihi` ve `durum` alanları sürecin ve sonucun izlenmesini sağlar.
+- Aynı hasta aynı tahlili farklı tarihlerde yeniden yaptırabilir; her istek ayrı bir `tahlil_istemi_id` kaydıdır.
+- Bir doktor farklı hastalara ve farklı tahlillere istek oluşturabilir. Her istek yalnızca bir hastaya, bir doktora ve bir tahlil türüne bağlanır.
+
+## Diğer tasarım notları
 
 - Bir doktor yalnızca bir polikliniğe bağlıdır; bir poliklinikte birden fazla doktor olabilir.
-- Her tahlil tek bir laboratuvara bağlıdır.
+- Her tahlil türü tek bir laboratuvara bağlıdır.
 - Her hemşire tek bir servise bağlıdır.
 - Her servis tek bir polikliniğe bağlıdır.
 - Aynı hasta farklı tarihlerde aynı poliklinikte yeniden muayene olabileceği için muayene tablosunda ayrı bir `muayene_id` kullanılmıştır.
-- Doktorun istediği tahlil ile hastanın yaptırdığı tahlil ayrı ilişki tablolarında tutulmuştur. Gerçek bir sistemde bu iki ilişki, ayrıca bir tahlil istemi/işlem kaydı üzerinden ilişkilendirilebilir.
